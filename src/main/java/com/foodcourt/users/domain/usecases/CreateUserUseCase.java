@@ -1,0 +1,113 @@
+package com.foodcourt.users.domain.usecases;
+
+import com.foodcourt.users.domain.exception.InvalidRoleException;
+import com.foodcourt.users.domain.exception.InvalidUserException;
+import com.foodcourt.users.domain.exception.UserIsNotOwnerRestaurantException;
+import com.foodcourt.users.domain.gateways.EncryptServiceGateway;
+import com.foodcourt.users.domain.gateways.RestaurantServiceGateway;
+import com.foodcourt.users.domain.gateways.UserRepositoryGateway;
+import com.foodcourt.users.domain.model.User;
+import com.foodcourt.users.domain.model.UserClaims;
+import com.foodcourt.users.domain.model.UserRole;
+import com.foodcourt.users.domain.ports.CreateUserPort;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+
+import static com.foodcourt.users.domain.constants.ErrorMessage.*;
+import static com.foodcourt.users.domain.constants.UserRules.LEGAL_AGE;
+import static com.foodcourt.users.domain.constants.ValidationMessage.EMPLOYEE_NEEDS_TO_BELONG_TO_SAME_RESTAURANT_AS_OWNER;
+import static com.foodcourt.users.domain.constants.ValidationMessage.USER_MUST_BE_OF_LEGAL_AGE;
+import static com.foodcourt.users.domain.model.UserRole.*;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
+
+@Slf4j
+@RequiredArgsConstructor
+public class CreateUserUseCase implements CreateUserPort {
+	
+	private final UserRepositoryGateway userRepositoryGateway;
+	private final EncryptServiceGateway encryptServiceGateway;
+	private final RestaurantServiceGateway restaurantServiceGateway;
+	
+	@Override
+	public User execute(User userToCreate, UserClaims creatorClaims) {
+		validateAuthorization(userToCreate, creatorClaims);
+		validateAge(userToCreate.getBirthdate());
+		validateUniqueDocumentNumber(userToCreate.getDocumentNumber());
+		validateUniqueEmail(userToCreate.getEmail());
+		
+		if (userToCreate.isEmployee()) {
+			validateEmployee(userToCreate, creatorClaims);
+		} else {
+			userToCreate.setIdRestaurant(null);
+		}
+		
+		userToCreate.setPassword(encryptPassword(userToCreate.getPassword()));
+		
+		return userRepositoryGateway.save(userToCreate);
+	}
+	
+	private void validateAuthorization(User userToCreate, UserClaims creatorClaims) {
+		log.trace("Validating authorization for user creation");
+		UserRole roleCreator = isNull(creatorClaims) ? null : creatorClaims.role();
+		UserRole newUserRole = userToCreate.getRole();
+		
+		boolean isForbiddenAction =
+			// Clients can only create themselves
+			(isNull(roleCreator) && !CLIENT.equals(newUserRole))
+			|| (CLIENT.equals(roleCreator))
+			
+			// Admin can only create Owners
+			|| (ADMIN.equals(roleCreator) && !OWNER.equals(newUserRole))
+			
+			// Owner can only create Employees
+			|| (OWNER.equals(roleCreator) && !EMPLOYEE.equals(newUserRole))
+			
+			// Employees cannot create users
+			|| (EMPLOYEE.equals(roleCreator))
+			
+			// No one can create Admins
+			|| (ADMIN.equals(newUserRole));
+		
+		if (isForbiddenAction) {
+			throw new InvalidRoleException(UNAUTHORIZED_ACTION);
+		}
+	}
+	
+	private void validateUniqueDocumentNumber(String documentNumber) {
+		log.trace("Validating unique document number");
+		User existingUser = userRepositoryGateway.findByDocumentNumber(documentNumber);
+		if (nonNull(existingUser)) throw new InvalidUserException(USER_WITH_THIS_DOCUMENT_NUMBER_ALREADY_EXISTS);
+	}
+	
+	private void validateUniqueEmail(String email) {
+		log.trace("Validating unique email");
+		User existingUser = userRepositoryGateway.findByEmail(email);
+		if (nonNull(existingUser)) throw new InvalidUserException(USER_WITH_THIS_EMAIL_ALREADY_EXISTS);
+	}
+	
+	private void validateAge(LocalDate birthDate) {
+		log.trace("Validating user age");
+		int age = Math.toIntExact(birthDate.until(
+			LocalDate.now(),
+			ChronoUnit.YEARS
+		));
+		if (age < LEGAL_AGE) throw new InvalidUserException(USER_MUST_BE_OF_LEGAL_AGE);
+	}
+	
+	private String encryptPassword(String password) {
+		return encryptServiceGateway.encrypt(password);
+	}
+	
+	private void validateEmployee(User user, UserClaims creatorClaims) {
+		log.trace("Validating employee association with restaurant");
+		user.validateRestaurantAssociation();
+		if (!restaurantServiceGateway.isRestaurantOwner(user.getIdRestaurant(), creatorClaims.id())) {
+			throw new UserIsNotOwnerRestaurantException(EMPLOYEE_NEEDS_TO_BELONG_TO_SAME_RESTAURANT_AS_OWNER);
+		}
+	}
+	
+}

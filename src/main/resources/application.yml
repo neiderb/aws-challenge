@@ -1,0 +1,41 @@
+server:
+  port: ${PORT}
+
+spring:
+  application:
+    name: ms-users
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+
+adapters:
+  db:
+    host: ${DB_HOST}
+    port: ${DB_PORT}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    database: ${DB_NAME}
+
+logging:
+  level:
+    com:
+      foodcourt: ${LOG_LEVEL:-INFO}
+    org:
+      hibernate:
+        orm:
+          connections:
+            pooling: ERROR
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRES_IN}
+
+external-api:
+   restaurant-service:
+     url: ${RESTAURANT_API_URL}
