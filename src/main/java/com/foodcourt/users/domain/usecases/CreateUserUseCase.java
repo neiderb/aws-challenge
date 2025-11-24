@@ -2,9 +2,7 @@ package com.foodcourt.users.domain.usecases;
 
 import com.foodcourt.users.domain.exception.InvalidRoleException;
 import com.foodcourt.users.domain.exception.InvalidUserException;
-import com.foodcourt.users.domain.exception.UserIsNotOwnerRestaurantException;
 import com.foodcourt.users.domain.gateways.EncryptServiceGateway;
-import com.foodcourt.users.domain.gateways.RestaurantServiceGateway;
 import com.foodcourt.users.domain.gateways.UserRepositoryGateway;
 import com.foodcourt.users.domain.model.User;
 import com.foodcourt.users.domain.model.UserClaims;
@@ -18,7 +16,6 @@ import java.time.temporal.ChronoUnit;
 
 import static com.foodcourt.users.domain.constants.ErrorMessage.*;
 import static com.foodcourt.users.domain.constants.UserRules.LEGAL_AGE;
-import static com.foodcourt.users.domain.constants.ValidationMessage.EMPLOYEE_NEEDS_TO_BELONG_TO_SAME_RESTAURANT_AS_OWNER;
 import static com.foodcourt.users.domain.constants.ValidationMessage.USER_MUST_BE_OF_LEGAL_AGE;
 import static com.foodcourt.users.domain.model.UserRole.*;
 import static java.util.Objects.isNull;
@@ -30,7 +27,6 @@ public class CreateUserUseCase implements CreateUserPort {
 	
 	private final UserRepositoryGateway userRepositoryGateway;
 	private final EncryptServiceGateway encryptServiceGateway;
-	private final RestaurantServiceGateway restaurantServiceGateway;
 	
 	@Override
 	public User execute(User userToCreate, UserClaims creatorClaims) {
@@ -40,7 +36,7 @@ public class CreateUserUseCase implements CreateUserPort {
 		validateUniqueEmail(userToCreate.getEmail());
 		
 		if (userToCreate.isEmployee()) {
-			validateEmployee(userToCreate, creatorClaims);
+			validateEmployee(userToCreate);
 		} else {
 			userToCreate.setIdRestaurant(null);
 		}
@@ -102,12 +98,9 @@ public class CreateUserUseCase implements CreateUserPort {
 		return encryptServiceGateway.encrypt(password);
 	}
 	
-	private void validateEmployee(User user, UserClaims creatorClaims) {
+	private void validateEmployee(User user) {
 		log.trace("Validating employee association with restaurant");
 		user.validateRestaurantAssociation();
-		if (!restaurantServiceGateway.isRestaurantOwner(user.getIdRestaurant(), creatorClaims.id())) {
-			throw new UserIsNotOwnerRestaurantException(EMPLOYEE_NEEDS_TO_BELONG_TO_SAME_RESTAURANT_AS_OWNER);
-		}
 	}
 	
 }
