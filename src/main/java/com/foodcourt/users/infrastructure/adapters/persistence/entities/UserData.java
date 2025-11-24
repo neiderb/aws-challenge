@@ -11,7 +11,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "foodcourt_user")
+@Table(name = "user", schema = "aws_challenge")
 public class UserData {
     
     @Id

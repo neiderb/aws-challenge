@@ -1,2 +1,2 @@
-ALTER TABLE foodcourt_user
+ALTER TABLE aws_challenge.user
 ADD COLUMN id_restaurant BIGINT;

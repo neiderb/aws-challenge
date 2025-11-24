@@ -14,7 +14,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "foodcourt_role")
+@Table(name = "role", schema = "aws_challenge")
 public class RoleData {
 
     @Id
