@@ -2,7 +2,6 @@ package com.foodcourt.users.domain.usecases;
 
 import com.foodcourt.users.domain.exception.InvalidRoleException;
 import com.foodcourt.users.domain.exception.InvalidUserException;
-import com.foodcourt.users.domain.gateways.EncryptServiceGateway;
 import com.foodcourt.users.domain.gateways.UserRepositoryGateway;
 import com.foodcourt.users.domain.model.User;
 import com.foodcourt.users.domain.model.UserClaims;
@@ -26,7 +25,6 @@ import static java.util.Objects.nonNull;
 public class CreateUserUseCase implements CreateUserPort {
 	
 	private final UserRepositoryGateway userRepositoryGateway;
-	private final EncryptServiceGateway encryptServiceGateway;
 	
 	@Override
 	public User execute(User userToCreate, UserClaims creatorClaims) {
@@ -40,8 +38,6 @@ public class CreateUserUseCase implements CreateUserPort {
 		} else {
 			userToCreate.setIdRestaurant(null);
 		}
-		
-		userToCreate.setPassword(encryptPassword(userToCreate.getPassword()));
 		
 		return userRepositoryGateway.save(userToCreate);
 	}
@@ -92,10 +88,6 @@ public class CreateUserUseCase implements CreateUserPort {
 			ChronoUnit.YEARS
 		));
 		if (age < LEGAL_AGE) throw new InvalidUserException(USER_MUST_BE_OF_LEGAL_AGE);
-	}
-	
-	private String encryptPassword(String password) {
-		return encryptServiceGateway.encrypt(password);
 	}
 	
 	private void validateEmployee(User user) {

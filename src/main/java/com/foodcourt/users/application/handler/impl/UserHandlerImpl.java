@@ -6,13 +6,11 @@ import com.foodcourt.users.application.handler.UserHandler;
 import com.foodcourt.users.application.mappers.UserRequestMapper;
 import com.foodcourt.users.application.mappers.UserResponseMapper;
 import com.foodcourt.users.domain.model.User;
-import com.foodcourt.users.domain.model.UserClaims;
 import com.foodcourt.users.domain.model.UserRole;
 import com.foodcourt.users.domain.ports.CreateUserPort;
 import com.foodcourt.users.domain.ports.GetUserByIdPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -28,14 +26,7 @@ public class UserHandlerImpl implements UserHandler {
 		log.trace("Creating user with email: {}", userRequest.email());
 		User userToSave = UserRequestMapper.INSTANCE.toDomain(userRequest);
 		userToSave.setRole(UserRole.getRoleof(userRequest.role()));
-		UserClaims creatorClaims = null;
-		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-		if (principal instanceof UserClaims userClaims) {
-			creatorClaims = userClaims;
-		}
-		
-		log.trace("User creator role is: {}", creatorClaims != null ? creatorClaims.role() : "ANONYMOUS");
-		User userSaved = createUserPort.execute(userToSave, creatorClaims);
+		User userSaved = createUserPort.execute(userToSave, null);
 		
 		log.debug("Created user with ID: {}", userSaved.getId());
 		return UserResponseMapper.INSTANCE.toResponse(userSaved);
