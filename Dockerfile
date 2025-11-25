@@ -5,7 +5,7 @@ WORKDIR /ms-user
 COPY . .
 
 RUN gradle dependencies
-RUN gradle bootJar
+RUN gradle clean bootJar
 
 FROM eclipse-temurin:21-jre-alpine
 
